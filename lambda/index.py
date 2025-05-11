@@ -1,6 +1,8 @@
 # lambda/index.py
 import json
 import os
+import urllib.request  
+import ssl  
 import boto3
 import re  # 正規表現モジュールをインポート
 from botocore.exceptions import ClientError
@@ -45,7 +47,7 @@ def lambda_handler(event, context):
         conversation_history = body.get('conversationHistory', [])
         
         print("Processing message:", message)
-        print("Using model:", MODEL_ID)
+        #print("Using model:", MODEL_ID)
         
         # 会話履歴を使用
         messages = conversation_history.copy()
@@ -106,16 +108,17 @@ def lambda_handler(event, context):
         #追加POINT
         print("Calling FastAPI at", FASTAPI_URL)
         payload = json.dumps({
-            "message": message,
-            "conversationHistory": messages
+          "prompt": message
         }).encode('utf-8')
+
+
 
         headers = {
             "Content-Type": "application/json"
         }
 
         req = urllib.request.Request(
-            url=FASTAPI_URL,
+            url=FASTAPI_URL + "/generate",
             data=payload,
             headers=headers,
             method='POST'
@@ -123,9 +126,10 @@ def lambda_handler(event, context):
 
         context_ssl = ssl._create_unverified_context()
         with urllib.request.urlopen(req, context=context_ssl) as res:
-            response_body = res.read().decode('utf-8')
-            response_json = json.loads(response_body)
-            assistant_response = response_json["response"]
+          response_body = res.read().decode('utf-8')
+          response_json = json.loads(response_body)
+          assistant_response = response_json["generated_text"]  # ←ここが重要！
+
 
         # アシスタントの応答を会話履歴に追加
         messages.append({
@@ -150,18 +154,20 @@ def lambda_handler(event, context):
         }
         
     except Exception as error:
-        print("Error:", str(error))
-        
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-                "Access-Control-Allow-Methods": "OPTIONS,POST"
-            },
-            "body": json.dumps({
-                "success": False,
-                "error": str(error)
-            })
+      print("Error:", str(error))
+      import traceback  # ← ここでもOK（ただし通常はファイル冒頭でまとめてインポートする方が好ましいです）
+      traceback.print_exc()  # ← エラーの詳細なスタックトレースをCloudWatch Logsに出力
+
+      return {
+          "statusCode": 500,
+          "headers": {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+              "Access-Control-Allow-Methods": "OPTIONS,POST"
+          },
+          "body": json.dumps({
+              "success": False,
+              "error": str(error)
+          })
         }
