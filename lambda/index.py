@@ -6,7 +6,7 @@ import re  # 正規表現モジュールをインポート
 from botocore.exceptions import ClientError
 
 
-FASTAPI_URL = "https://2d72-34-125-160-131.ngrok-free.app/"
+FASTAPI_URL = "https://1f80-35-204-179-92.ngrok-free.app"
 
 # # Lambda コンテキストからリージョンを抽出する関数
 # def extract_region_from_arn(arn):
